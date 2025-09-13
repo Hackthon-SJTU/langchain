@@ -44,9 +44,9 @@ def extract_last_frame(video_path, output_path=None):
     """
     video_path = Path(video_path)
     
-    # 如果没有指定输出路径，则使用默认路径
+    # 如果没有指定输出路径，则使用默认路径（PNG格式）
     if output_path is None:
-        output_path = video_path.parent / f"{video_path.stem}_last_frame.jpg"
+        output_path = video_path.parent / f"{video_path.stem}_last_frame.png"
     else:
         output_path = Path(output_path)
     
@@ -54,14 +54,13 @@ def extract_last_frame(video_path, output_path=None):
         # 获取视频时长
         duration = get_video_duration(video_path)
         
-        # 构建 ffmpeg 命令
+        # 构建 ffmpeg 命令（输出PNG格式，无需-q:v参数）
         cmd = [
             'ffmpeg',
             '-y',  # 覆盖已存在的文件
             '-ss', str(duration - 0.1),  # 定位到最后 0.1 秒
             '-i', str(video_path),
             '-vframes', '1',  # 只提取一帧
-            '-q:v', '2',  # 设置质量（2 是较高质量）
             str(output_path)
         ]
         

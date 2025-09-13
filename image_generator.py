@@ -15,7 +15,7 @@ def text_to_image(prompt: str, out_name: str = "img.png") -> str:
     Returns:
         生成的图像本地路径
     """
-    api_key = os.getenv('DASHSCOPE_API_KEY')
+    api_key = 'sk-60b22327f9a7438b99245a48ac098f1b'
     if not api_key:
         raise ValueError("请设置 DASHSCOPE_API_KEY 环境变量")
 
