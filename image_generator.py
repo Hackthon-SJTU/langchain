@@ -1,69 +1,49 @@
+import json
 import os
+import dashscope
 import requests
-from pathlib import Path
+from dashscope import MultiModalConversation
 
-# 创建临时目录用于存储生成的图片
-TMP = Path("./tmp")
-TMP.mkdir(exist_ok=True)
-
-def text_to_image(prompt: str, out_name: str = "img.png") -> str:
-    """
-    使用阿里云 DashScope API 将文本转换为图像。
-    Args:
-        prompt: 图像描述文本
-        out_name: 输出图像文件名
-    Returns:
-        生成的图像本地路径
-    """
-    api_key = 'sk-60b22327f9a7438b99245a48ac098f1b'
-    if not api_key:
-        raise ValueError("请设置 DASHSCOPE_API_KEY 环境变量")
-
-    url = "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation"
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}"
+messages = [
+    {
+        "role": "user",
+        "content": [
+            {"text":  "宁静的森林景观，郁郁葱葱的绿色植物，参天大树和茂密的树叶，斑驳的阳光透过树冠，一条温柔的溪流蜿蜒穿过场景，河岸两旁生机勃勃的野花和蕨类植物，宁静而未受破坏的荒野，比较高视角"}
+        ]
     }
-    
-    payload = {
-        "model": "qwen-image",
-        "input": {
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "text": prompt
-                        }
-                    ]
-                }
-            ]
-        },
-        "parameters": {
-            "negative_prompt": "",
-            "prompt_extend": True,
-            "watermark": True,
-            "size": "1328*1328"
-        }
-    }
+]
 
-    try:
-        response = requests.post(url, headers=headers, json=payload)
-        response.raise_for_status()
-        result = response.json()
-        
-        # 从响应中获取图像 URL 并下载
-        if 'output' in result and 'results' in result['output']:
-            image_url = result['output']['results'][0].get('url')
-            if image_url:
-                image_response = requests.get(image_url)
-                image_response.raise_for_status()
-                
-                out_path = TMP / out_name
-                with open(out_path, "wb") as f:
-                    f.write(image_response.content)
-                return str(out_path)
-            
-        raise Exception("未能从 API 响应中获取图像 URL")
-    except Exception as e:
-        raise Exception(f"调用 DashScope API 失败: {str(e)}")
+# 若没有配置环境变量，请用百炼API Key将下行替换为：api_key="sk-xxx"
+api_key = 'sk-60b22327f9a7438b99245a48ac098f1b'
+
+response = MultiModalConversation.call(
+    api_key=api_key,
+    model="qwen-image",
+    messages=messages,
+    result_format='message',
+    stream=False,
+    watermark=True,
+    prompt_extend=True,
+    negative_prompt='',
+    size='1328*1328'
+)
+
+if response.status_code == 200:
+    print(json.dumps(response, ensure_ascii=False))
+    # 提取图片URL
+    image_url = response['output']['choices'][0]['message']['content'][0]['image']
+    # 下载图片
+    response = requests.get(image_url)
+    if response.status_code == 200:
+        os.makedirs('./temp', exist_ok=True)
+        image_path = './temp/downloaded_image.png'
+        with open(image_path, 'wb') as f:
+            f.write(response.content)
+        print(f"图片已下载到: {image_path}")
+    else:
+        print(f"图片下载失败，HTTP返回码: {response.status_code}")
+else:
+    print(f"HTTP返回码：{response.status_code}")
+    print(f"错误码：{response.code}")
+    print(f"错误信息：{response.message}")
+    print("请参考文档：https://help.aliyun.com/zh/model-studio/developer-reference/error-code")
